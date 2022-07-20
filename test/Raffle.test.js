@@ -8,7 +8,12 @@ const {
 !developmentChains.includes(network.name)
   ? describe.skip
   : describe('Raffel Unit Test', async () => {
-      let raffle, vrfCoordinatorV2Mock, entranceFee, deployer, interval;
+      let raffle,
+        vrfCoordinatorV2Mock,
+        entranceFee,
+        deployer,
+        interval,
+        accounts;
       const chainId = network.config.chainId;
       beforeEach(async () => {
         deployer = (await getNamedAccounts()).deployer;
@@ -20,6 +25,7 @@ const {
         );
         entranceFee = await raffle.getEntranceFee();
         interval = await raffle.getInterval();
+        accounts = await raffle.getSigners();
       });
       describe('Constructor', async () => {
         it('Initalizes the raffle correctly', async () => {
@@ -78,35 +84,44 @@ const {
           ]);
           await network.provider.send('evm_mine', []);
           const tx = await raffle.performUpkeep([]);
-          assert(tx); 
+          assert(tx);
         });
         it('Reverts when checkupkeep is false', async () => {
-            await expect(raffle.performUpkeep([])).to.be.revertedWith('Raffle__upkeepFailed')
-        })
-        it('Check if the performUpKeep ic calculating and emit and event and call the VRFCoor', async()=> {
-            await raffle.enterRaffle({ value: entranceFee });
-            await network.provider.send('evm_increaseTime', [
-              interval.toNumber() + 1,
-            ]);
-            await network.provider.send('evm_mine', []);
-            const res = await raffle.performUpkeep([])
-            const receipt = await res.wait(1)
-            const id = receipt.events[1].requestId
-            const raffleState = await raffle.getRaffleState()
-            assert(id.toNumber() > 0)
-            assert(raffleState.toString() == '1')
-        })
+          await expect(raffle.performUpkeep([])).to.be.revertedWith(
+            'Raffle__upkeepFailed'
+          );
+        });
+        it('Check if the performUpKeep ic calculating and emit and event and call the VRFCoor', async () => {
+          await raffle.enterRaffle({ value: entranceFee });
+          await network.provider.send('evm_increaseTime', [
+            interval.toNumber() + 1,
+          ]);
+          await network.provider.send('evm_mine', []);
+          const res = await raffle.performUpkeep([]);
+          const receipt = await res.wait(1);
+          const id = receipt.events[1].requestId;
+          const raffleState = await raffle.getRaffleState();
+          assert(id.toNumber() > 0);
+          assert(raffleState.toString() == '1');
+        });
       });
-    //   describe('FulfilRandom Words', () => {
-    //     beforeEach(async ()=> {
-    //         await raffle.enterRaffle({value:entranceFee})
-    //         await network.provider.send('evm_increaseTime', [
-    //             interval.toNumber() + 1,
-    //           ]);
-    //           await network.provider.send('evm_mine', []);
-    //     })
-    //   })
-    it('Picks a winner, resets the lottery and sends money', async ()=> {
-        
-    })
+      //   describe('FulfilRandom Words', () => {
+      //     beforeEach(async ()=> {
+      //         await raffle.enterRaffle({value:entranceFee})
+      //         await network.provider.send('evm_increaseTime', [
+      //             interval.toNumber() + 1,
+      //           ]);
+      //           await network.provider.send('evm_mine', []);
+      //     })
+      //   })
+      it('Picks a winner, resets the lottery and sends money', async () => {
+        const additionalAccounts = 3;
+        const startingIndex = 1;
+        for (let i = 0; i < startingIndex + additionalAccounts; i++) {
+          const accoutConnectedToRaffle = await raffle.connect(accounts[i]);
+          await accoutConnectedToRaffle.raffle.enterRaffle({
+            value: entranceFee,
+          });
+        }
+      });
     });
