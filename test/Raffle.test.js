@@ -12,8 +12,7 @@ const {
         vrfCoordinatorV2Mock,
         entranceFee,
         deployer,
-        interval,
-        accounts;
+        interval;
       const chainId = network.config.chainId;
       beforeEach(async () => {
         deployer = (await getNamedAccounts()).deployer;
@@ -25,7 +24,6 @@ const {
         );
         entranceFee = await raffle.getEntranceFee();
         interval = await raffle.getInterval();
-        accounts = await raffle.getSigners();
       });
       describe('Constructor', async () => {
         it('Initalizes the raffle correctly', async () => {
@@ -101,7 +99,7 @@ const {
           const receipt = await res.wait(1);
           const id = receipt.events[1].requestId;
           const raffleState = await raffle.getRaffleState();
-          assert(id.toNumber() > 0);
+          assert(id.toString() > 0);
           assert(raffleState.toString() == '1');
         });
       });
@@ -117,11 +115,37 @@ const {
       it('Picks a winner, resets the lottery and sends money', async () => {
         const additionalAccounts = 3;
         const startingIndex = 1;
+        const accounts = await ethers.getSigners()
         for (let i = 0; i < startingIndex + additionalAccounts; i++) {
           const accoutConnectedToRaffle = await raffle.connect(accounts[i]);
-          await accoutConnectedToRaffle.raffle.enterRaffle({
+          await accoutConnectedToRaffle.enterRaffle({
             value: entranceFee,
           });
         }
+        const startingTimeStamp = await raffle.getLatestTimeStamp()
+        await new Promise(async(resolve, reject) => {
+          raffle.once('WinnerPicked', async () => {
+            try {
+              const recentWinner = await raffle.getRecentWinner();
+              const raffleState = await raffle.getRaffleState()
+              const endingTimeStamp = await raffle.getLatestTimeStamp()
+              const numPlayers = await raffle.getNumberOfPlayers();
+              assert.equal(numPlayers.toString(), '0')
+              assert.equal(raffleState.toString(), '0')
+              assert(endingTimeStamp > startingTimeStamp)
+              console.log(recentWinner)
+              console.log(accounts[0])
+              console.log(accounts[1])
+              console.log(accounts[2])
+              console.log(accounts[3])
+            } catch (error) {
+              reject(error)
+            }
+            resolve()
+          })
+          const tx = await raffle.performUpkeep([])
+          const txReceipt = await tx.wait(1);
+          await vrfCoordinatorV2Mock.fulfillRandomWords(txReceipt.events[1].args.requestId, raffle.address)
+        })
       });
     });
