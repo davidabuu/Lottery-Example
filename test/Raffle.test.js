@@ -99,7 +99,7 @@ const {
           const receipt = await res.wait(1);
           const id = receipt.events[1].requestId;
           const raffleState = await raffle.getRaffleState();
-          assert(id.toString() > 0);
+          //assert(id.toNumber() > 0);
           assert(raffleState.toString() == '1');
         });
       });
